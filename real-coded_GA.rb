@@ -92,7 +92,7 @@ class Population
 		@pop.zip(@fit).each do |gene, f|
 			if f < minimum
 				@bestGene = gene
-				minimum    = f
+				minimum   = f
 			end
 		end
 	end
@@ -124,13 +124,13 @@ class RealCodedGA
 	# 実数値GAの実行
 	def run(eval, gen)
 		# 交叉対象の選択
-		select
+		parent = select(@population)
 
 		# 交差
-		crossover
+		child = crossover(parent)
 
 		# 世代交代
-		evolve(eval)
+		evolve(eval, parent, child)
 
 		# 適合度の算出
 		@population.calc_fit(eval)
@@ -145,48 +145,49 @@ class RealCodedGA
 
 
 	# 親個体を個体群からランダムに選択する
-	def select
-		@population.shuffle!
-		@parent = @population.slice!(0, @nP)
+	def select(pop)
+		pop.shuffle!
+		return pop.slice!(0, @nP)
 	end
 
 	# 交叉によって子個体を生成する
-	def crossover
-		@child = Array.new
+	def crossover(parent)
+		child = Array.new
 		@nCH.times do
-			@child << simplex_crossover
+			child << simplex_crossover(parent)
 		end
+		return child
 	end
 
 	# 世代交代を行う
-	def evolve(eval)
+	def evolve(eval, parent, child)
 		# 「世代交代の候補」 = 「子個体」 + 「親個体からランダムに2個」
-		@parent.shuffle!
-		@candidate  = @parent.slice!(0, 2)
-		@candidate += @child
+		parent.shuffle!
+		candidate  = parent.slice!(0, 2)
+		candidate += child
 
 		# 世代交代の候補からエリートを選択する
-		elite    = select_elite(eval)
+		elite = select_elite(eval, candidate)
 
 		# 世代交代の候補(エリートは除く)からルーレット選択を行う
-		#roulette = select_roulette
+		#roulette = select_roulette(eval, candidate)
 
 		# 親個体に戻す
-		@parent << elite
-		#@parent << roulette
-		@parent << elite
+		parent << elite
+		#parent << roulette
+		parent << elite
 
 		# 次世代の集団を生成する
-		@population.push(@parent)
+		@population.push(parent)
 	end
 
 	# シンプレックス交叉
-	def simplex_crossover
+	def simplex_crossover(parent)
 		# 重心の計算
 		g = Array.new(@m, 0.0)
 		for i in 0..@m-1
 			for k in 0..@nP-1
-				g[i] += @parent[k][i]
+				g[i] += parent[k][i]
 			end
 		end
 		g.map! { |x| x / @nP }
@@ -194,7 +195,7 @@ class RealCodedGA
 		z = Array.new(@nP) { Array.new(@m, 0.0) }
 		for i in 0..@m-1
 			for k in 0..@nP-1
-				z[k][i] = g[i] + Math.sqrt(@m + 2) * (@parent[k][i] - g[i])
+				z[k][i] = g[i] + Math.sqrt(@m + 2) * (parent[k][i] - g[i])
 			end
 		end
 
@@ -205,21 +206,21 @@ class RealCodedGA
 			end
 		end
 
-		child = Array.new(@m, 0.0)
+		gene = Array.new(@m, 0.0)
 		for i in 0..@m-1
-			child[i] = z[@nP-1][i] + c[@nP-1][i]
+			gene[i] = z[@nP-1][i] + c[@nP-1][i]
 		end
 
-		return child
+		return gene
 	end
 
 	# エリート(最良個体)選択
-	def select_elite(eval)
+	def select_elite(eval, candidate)
 		elite   = Array.new
 		delIdx  = 0
 		minimum = Float::INFINITY
 
-		@candidate.each_with_index do |gene, idx|
+		candidate.each_with_index do |gene, idx|
 			fit = eval.fitness(gene)
 
 			if fit < minimum
@@ -229,13 +230,13 @@ class RealCodedGA
 			end
 		end
 
-		@candidate.delete_at(delIdx)
+		candidate.delete_at(delIdx)
 
 		return elite
 	end
 
 	# ルーレット選択(未実装)
-	def select_roulette
-		return @candidate.sample
+	def select_roulette(eval, candidate)
+		return candidate.sample
 	end
 end
