@@ -18,26 +18,26 @@ class PolynomialFit
 	end
 
 	def show
-		print("\n---------- Test Data ----------\n")
-		print("idx\t \tx\ty\n\n")
+		printf("\n---------- Data for Polynomial Fitting ----------\n")
+		printf("    i\t      x         y   \n\n")
 
 		@dataX.zip(@dataY).each_with_index do |data, idx|
 			x = data[0]
 			y = data[1]
-			print("#{idx}\t|\t#{x}\t#{y}\n")
+			printf("%5d\t|%10.4f%10.4f\n", idx, x, y)
 		end
 	end
 
 	# パラメータのセットに対する評価関数の値(適合度)を求める
-	def fitness(param)
+	def fitness(gene)
 		fit = 0.0 # 適合度
 
 		@dataX.zip(@dataY).each do |x, y|
-			ye = 0.0
+			ye = 0.0 # フィッティングによる推定値
 
-			# xの関数形は多項式とする
-			# 多項式の次数はparamの数によって決まる
-			param.each_with_index do |p, i|
+			# xの関数形は多項式
+			# 多項式の次数は遺伝子(パラメータ)の数によって決まる
+			gene.each_with_index do |p, i|
 				ye += p * x ** i
 			end
 

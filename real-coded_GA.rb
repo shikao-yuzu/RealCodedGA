@@ -1,27 +1,27 @@
 # -*- encoding: utf-8 -*-
 
 # -----------------------------------------------------
-#    個体集合
+#    個体群
 # -----------------------------------------------------
 class Population
-	attr_reader :totalFitness, :bestParam
+	attr_reader :totalFit, :bestGene
 
-	# sizePop  : 個体数
-	# sizeParam: 各個体のパラメータ数
-	# rndBegin : パラメータの下限
-	# rndEnd   : パラメータの上限
-	def initialize(sizePop, sizeParam, rndBegin = 0.0, rndEnd = 1.0)
-		# 個体の集合
-		@pop = Array.new(sizePop) { Array.new(sizeParam) { rand(rndBegin...rndEnd) } }
+	# sizePop : 個体数
+	# sizeGene: 各個体の持つ遺伝子の数
+	# geneMin : 遺伝子の下限
+	# geneMax : 遺伝子の上限
+	def initialize(sizePop, sizeGene, geneMin = 0.0, geneMax = 1.0)
+		# 個体群
+		@pop = Array.new(sizePop) { Array.new(sizeGene) { rand(geneMin...geneMax) } }
 
-		# 個体の適合度
+		# 各個体の適合度
 		@fit = Array.new(sizePop, 0.0)
 
-		# 個体集合全体の適合度
-		@totalFitness = 0.0
+		# 個体群全体の適合度
+		@totalFit = 0.0
 
 		# 最良個体
-		@bestParam = Array.new
+		@bestGene = Array.new
 	end
 
 	def shuffle!
@@ -29,47 +29,49 @@ class Population
 	end
 
 	def slice!(idx, len)
-		return @pop.slice!(idx, len)
+		@pop.slice!(idx, len)
 	end
 
-	def push(param)
-		@pop += param
+	def push(gene)
+		@pop += gene
 	end
 
+	# 個体群の適合度を計算する
 	def calc_fit(eval)
-		@pop.each_with_index do |param, idx|
-			@fit[idx] = eval.fitness(param)
+		@pop.each_with_index do |gene, idx|
+			@fit[idx] = eval.fitness(gene)
 		end
 
-		# 集団全体の適合度の算出
+		# 個体群全体の適合度の算出
 		total_fit
 
 		# 最良個体の算出
 		best_fit
 	end
 
-	def show(gen)
-		print("\n\n---------- Population [generation = #{gen}] ----------\n")
-		print("idx\t \tparams\n\n")
+	def show(generation)
+		printf("\n\n---------- Population [generation = #{generation}] ----------\n")
+		printf("    i\t  fitness\tgene\n\n")
 
 		@pop.zip(@fit).each_with_index do |zip, idx|
-			param = zip[0]
-			f     = zip[1]
+			gene = zip[0]
+			f    = zip[1]
 
-			print("#{idx}\t|")
+			printf("%5d\t|", idx)
 
-			param.each do |g|
-				print("\t#{g}")
-			end
-
-			if gen > 0
-				print("\t|\t#{f}\n")
+			if generation > 0
+				printf("%10.4f|", f)
 			else
-				print("\n")
+				print("\t|")
 			end
+
+			gene.each do |g|
+				printf("%10.4f", g)
+			end
+			printf("\n")
 		end
 
-		print("\n[total fitness]\n#{totalFitness}\n") if gen > 0
+		printf("\n[total fitness]\n%10.4f\n", totalFit) if generation > 0
 	end
 
 
@@ -77,19 +79,19 @@ class Population
 
 
 	def total_fit
-		@totalFitness = 0.0
+		@totalFit = 0.0
 
 		@fit.each do |f|
-			@totalFitness += f
+			@totalFit += f
 		end
 	end
 
 	def best_fit
 		minimum = Float::INFINITY
 
-		@pop.zip(@fit).each do |param, f|
+		@pop.zip(@fit).each do |gene, f|
 			if f < minimum
-				@bestParam = param
+				@bestGene = gene
 				minimum    = f
 			end
 		end
@@ -101,19 +103,21 @@ end
 #    実数値GA
 #     - 世代交代モデル: Minimal Generation Gap (MGG)
 #     - 交叉方法: Simplex Crossover (SPX)
+#    参考文献
+#     - いまさら聞けない 計算力学の常識 第6話
 # -----------------------------------------------------
 class RealCodedGA
-	# order: 近似曲線の次数
-	def initialize(order)
-		@m    = order + 1  # 各個体のパラメータの数
+	# geneNum: 各染色体の遺伝子の数
+	def initialize(geneNum)
+		@m    = geneNum    # 各個体の遺伝子の数
 		@nPOP = 15 * @m    # 初期集団に属する個体の数
 		@nP   = @m + 1     # 交叉の対象となる親個体の数
 		@nCH  = 10 * @m    # 交叉によって生成される子個体の数
 	end
 
-	# 初期集団を乱数で生成する
-	def seed(rndBegin = 0.0, rndEnd = 1.0)
-		@population = Population.new(@nPOP, @m, rndBegin, rndEnd)
+	# 初期世代を乱数で生成する
+	def seed(geneMin = 0.0, geneMax = 1.0)
+		@population = Population.new(@nPOP, @m, geneMin, geneMax)
 		@population.show(0)
 	end
 
@@ -133,14 +137,14 @@ class RealCodedGA
 
 		@population.show(gen)
 
-		return @population.totalFitness, @population.bestParam
+		return @population.totalFit, @population.bestGene
 	end
 
 
 	private
 
 
-	# 親個体を個体集合からランダムに選択する
+	# 親個体を個体群からランダムに選択する
 	def select
 		@population.shuffle!
 		@parent = @population.slice!(0, @nP)
@@ -165,7 +169,7 @@ class RealCodedGA
 		elite    = select_elite(eval)
 
 		# 世代交代の候補(エリートは除く)からルーレット選択を行う
-		roulette = select_roulette
+		#roulette = select_roulette
 
 		# 親個体に戻す
 		@parent << elite
@@ -211,15 +215,15 @@ class RealCodedGA
 
 	# エリート(最良個体)選択
 	def select_elite(eval)
-		elite   = []
+		elite   = Array.new
 		delIdx  = 0
 		minimum = Float::INFINITY
 
-		@candidate.each_with_index do |param, idx|
-			fit = eval.fitness(param)
+		@candidate.each_with_index do |gene, idx|
+			fit = eval.fitness(gene)
 
 			if fit < minimum
-				elite   = param
+				elite   = gene
 				minimum = fit
 				delIdx  = idx
 			end
