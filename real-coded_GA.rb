@@ -4,7 +4,7 @@
 #    個体群
 # -----------------------------------------------------
 class Population
-	attr_reader :totalFit, :bestGene
+	attr_reader :meanFit, :bestGene
 
 	# sizePop : 個体数
 	# sizeGene: 各個体の持つ遺伝子の数
@@ -18,7 +18,7 @@ class Population
 		@fit = Array.new(sizePop, 0.0)
 
 		# 個体群全体の適合度
-		@totalFit = 0.0
+		@meanFit = 0.0
 
 		# 最良個体
 		@bestGene = Array.new
@@ -43,7 +43,7 @@ class Population
 		end
 
 		# 個体群全体の適合度の算出
-		total_fit
+		mean_fit
 
 		# 最良個体の算出
 		best_fit
@@ -71,28 +71,30 @@ class Population
 			printf("\n")
 		end
 
-		printf("\n[total fitness]\n%10.4f\n", totalFit) if generation > 0
+		printf("\n[mean fitness]\n%10.4f\n", meanFit) if generation > 0
 	end
 
 
 	private
 
 
-	def total_fit
-		@totalFit = 0.0
+	def mean_fit
+		@meanFit = 0.0
 
 		@fit.each do |f|
-			@totalFit += f
+			@meanFit += f
 		end
+
+		@meanFit /= @fit.length
 	end
 
 	def best_fit
-		minimum = Float::INFINITY
+		maximum = 0.0
 
 		@pop.zip(@fit).each do |gene, f|
-			if f < minimum
+			if f > maximum
 				@bestGene = gene
-				minimum   = f
+				maximum   = f
 			end
 		end
 	end
@@ -103,7 +105,7 @@ end
 #    実数値GA
 #     - 世代交代モデル: Minimal Generation Gap (MGG)
 #     - 交叉方法: Simplex Crossover (SPX)
-#    参考文献
+#    ※参考文献
 #     - いまさら聞けない 計算力学の常識 第6話
 # -----------------------------------------------------
 class RealCodedGA
@@ -135,9 +137,10 @@ class RealCodedGA
 		# 適合度の算出
 		@population.calc_fit(eval)
 
+		# 世代の表示
 		@population.show(gen)
 
-		return @population.totalFit, @population.bestGene
+		return @population.meanFit, @population.bestGene
 	end
 
 
@@ -170,12 +173,11 @@ class RealCodedGA
 		elite = select_elite(eval, candidate)
 
 		# 世代交代の候補(エリートは除く)からルーレット選択を行う
-		#roulette = select_roulette(eval, candidate)
+		roulette = select_roulette(eval, candidate)
 
 		# 親個体に戻す
 		parent << elite
-		#parent << roulette
-		parent << elite
+		parent << roulette
 
 		# 次世代の集団を生成する
 		@population.push(parent)
@@ -218,14 +220,14 @@ class RealCodedGA
 	def select_elite(eval, candidate)
 		elite   = Array.new
 		delIdx  = 0
-		minimum = Float::INFINITY
+		maximum = 0.0
 
 		candidate.each_with_index do |gene, idx|
 			fit = eval.fitness(gene)
 
-			if fit < minimum
+			if fit > maximum
 				elite   = gene
-				minimum = fit
+				maximum = fit
 				delIdx  = idx
 			end
 		end
@@ -235,8 +237,31 @@ class RealCodedGA
 		return elite
 	end
 
-	# ルーレット選択(未実装)
+	# ルーレット選択
+	# ※参考文献
+	#  - Cによる探索プログラミング pp.212-218
 	def select_roulette(eval, candidate)
-		return candidate.sample
+		pselect = Array.new(candidate.length)
+
+		candidate.each_with_index do |gene, idx|
+			fit = eval.fitness(gene)
+
+			if idx == 0
+				pselect[idx] = fit
+			else
+				pselect[idx] = pselect[idx-1] + fit
+			end
+		end
+		pselect.map! { |x| x / pselect[candidate.length-1] }
+
+		r = rand(0.0..1.0)
+		i = 0
+		roulette = candidate[0]
+		while r > pselect[i]
+			roulette = candidate[i+1]
+			i += 1
+		end
+
+		return roulette
 	end
 end

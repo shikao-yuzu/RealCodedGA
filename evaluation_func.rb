@@ -1,9 +1,18 @@
 # -*- encoding: utf-8 -*-
 
+class EvaluationFunc
+	# パラメータのセットに対する適合度を求める
+	def fitness(gene)
+		e = func(gene)
+		return 1.0 / (1.0 + e.abs)
+	end
+end
+
+
 # -----------------------------------------------------
 #    多項式フィッティング
 # -----------------------------------------------------
-class PolynomialFit
+class PolynomialFitting < EvaluationFunc
 	# 評価関数の重み
 	W = 1.0
 
@@ -28,22 +37,33 @@ class PolynomialFit
 		end
 	end
 
-	# パラメータのセットに対する評価関数の値(適合度)を求める
-	def fitness(gene)
-		fit = 0.0 # 適合度
+	# 評価関数
+	def func(param)
+		e = 0.0 # 評価関数
 
 		@dataX.zip(@dataY).each do |x, y|
 			ye = 0.0 # フィッティングによる推定値
 
 			# xの関数形は多項式
-			# 多項式の次数は遺伝子(パラメータ)の数によって決まる
-			gene.each_with_index do |p, i|
+			# 多項式の次数はパラメータの数によって決まる
+			param.each_with_index do |p, i|
 				ye += p * x ** i
 			end
 
-			fit += 0.5 * W * (y - ye) * (y - ye)
+			e += 0.5 * W * (y - ye) * (y - ye)
 		end
 
-		return fit
+		return e
+	end
+end
+
+
+# -----------------------------------------------------
+#    関数:f(x) = x^2 - 2
+# -----------------------------------------------------
+class SolveEquation < EvaluationFunc
+	# 評価関数
+	def func(x)
+		e = x[0] ** 2.0 - 2.0
 	end
 end
