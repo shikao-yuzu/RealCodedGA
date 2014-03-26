@@ -43,10 +43,10 @@ class Population
 		end
 
 		# 個体群全体の適合度の算出
-		mean_fit
+		@meanFit = mean_fit()
 
 		# 最良個体の算出
-		best_fit
+		@bestGene = best_fit()
 	end
 
 	def show(generation)
@@ -79,24 +79,21 @@ class Population
 
 
 	def mean_fit
-		@meanFit = 0.0
-
-		@fit.each do |f|
-			@meanFit += f
-		end
-
-		@meanFit /= @fit.length
+		@fit.inject(0.0) { |sum, idx| sum += idx } / @fit.length
 	end
 
 	def best_fit
+		best    = []
 		maximum = 0.0
 
 		@pop.zip(@fit).each do |gene, f|
 			if f > maximum
-				@bestGene = gene
-				maximum   = f
+				best    = gene
+				maximum = f
 			end
 		end
+
+		return best
 	end
 end
 
